@@ -1,0 +1,1162 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тренажер Goethe-Zertifikat A1: Start Deutsch 1</title>
+    <!-- Подключение Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Подключение шрифта Inter и иконок FontAwesome -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f4f2ed;
+            color: #1e293b;
+        }
+        /* Стили для 3D-переворота флеш-карточки */
+        .perspective-1000 {
+            perspective: 1000px;
+        }
+        .transform-style-3d {
+            transform-style: preserve-3d;
+            transition: transform 0.55s cubic-bezier(0.4, 0.2, 0.2, 1);
+        }
+        .backface-hidden {
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+        }
+        .rotate-y-180 {
+            transform: rotateY(180deg);
+        }
+        /* Кастомный скроллбар для панели категорий */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        /* Анимация пульсации при озвучке */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.08); opacity: 0.4; }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+        .speaking-active {
+            animation: pulse-ring 1.2s infinite;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Верхняя шапка приложения с общим прогрессом -->
+    <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-30">
+        <div class="max-w-5xl mx-auto px-4 py-3 sm:py-4">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-amber-500 text-slate-950 font-extrabold flex items-center justify-center text-lg shadow-inner shrink-0">
+                        A1
+                    </div>
+                    <div>
+                        <h1 class="text-base sm:text-lg font-bold tracking-tight leading-tight">
+                            Goethe-Zertifikat A1: Start Deutsch 1
+                        </h1>
+                        <p class="text-xs text-slate-300">Интерактивный тренажер фраз, слов и записи</p>
+                    </div>
+                </div>
+
+                <!-- Счетчик прогресса -->
+                <div class="flex items-center gap-3 bg-slate-800/90 px-3 py-2 rounded-xl border border-slate-700">
+                    <div class="text-xs">
+                        <span class="text-slate-400">Выучено:</span>
+                        <span id="masteredCount" class="font-bold text-emerald-400 text-sm ml-1">0</span>
+                        <span class="text-slate-400">/</span>
+                        <span id="totalCount" class="font-semibold text-slate-200">0</span>
+                    </div>
+                    <div class="w-24 sm:w-32 bg-slate-700 h-2.5 rounded-full overflow-hidden">
+                        <div id="progressBar" class="bg-emerald-500 h-full transition-all duration-500 rounded-full" style="width: 0%"></div>
+                    </div>
+                    <button onclick="openResetModal()" title="Сбросить прогресс изучения" class="text-slate-400 hover:text-amber-400 transition p-1">
+                        <i class="fa-solid fa-rotate-right text-xs"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Переключатель режимов работы -->
+            <nav class="grid grid-cols-3 gap-2 mt-3 pt-2 border-t border-slate-800">
+                <button id="tab-flashcards" onclick="switchMode('flashcards')" class="mode-btn flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-semibold text-xs sm:text-sm transition bg-amber-500 text-slate-950 shadow">
+                    <i class="fa-solid fa-layer-group"></i>
+                    <span>1. Карточки</span>
+                </button>
+                <button id="tab-typing" onclick="switchMode('typing')" class="mode-btn flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-semibold text-xs sm:text-sm transition bg-slate-800 text-slate-300 hover:bg-slate-700">
+                    <i class="fa-solid fa-keyboard"></i>
+                    <span>2. Письмо (Тест)</span>
+                </button>
+                <button id="tab-notes" onclick="switchMode('notes')" class="mode-btn flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-semibold text-xs sm:text-sm transition bg-slate-800 text-slate-300 hover:bg-slate-700">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                    <span>3. Мои записи</span>
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Панель фильтрации по темам экзамена -->
+    <div id="categoryBarWrapper" class="bg-white border-b border-slate-200 shadow-sm">
+        <div class="max-w-5xl mx-auto px-4 py-2.5">
+            <div class="flex items-center justify-between mb-1.5">
+                <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Раздел экзамена:</span>
+                <label class="inline-flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer select-none">
+                    <input type="checkbox" id="onlyUnmasteredCheckbox" onchange="applyFilters()" class="rounded text-amber-500 focus:ring-amber-500">
+                    <span>Только невыученные</span>
+                </label>
+            </div>
+            <div id="categoryContainer" class="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                <!-- Кнопки категорий генерируются через JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Основная рабочая область -->
+    <main class="flex-1 max-w-4xl w-full mx-auto px-4 py-5 sm:py-7">
+
+        <!-- Всплывающее уведомление (вместо alert) -->
+        <div id="toastBox" class="fixed bottom-5 right-5 z-50 hidden transform transition-all duration-300">
+            <div class="bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl border border-slate-700 flex items-center gap-3 text-sm">
+                <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400"></i>
+                <span id="toastText">Сохранено!</span>
+            </div>
+        </div>
+
+        <!-- ========================================================= -->
+        <!-- РЕЖИМ 1: ФЛЕШ-КАРТОЧКИ С ТРАНСКРИПЦИЕЙ И ОЗВУЧКОЙ         -->
+        <!-- ========================================================= -->
+        <section id="section-flashcards" class="space-y-4">
+            <!-- Настройки отображения карточки -->
+            <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200/80 flex flex-wrap items-center justify-between gap-2 text-xs sm:text-sm">
+                <div class="flex items-center gap-2">
+                    <button id="dirBtn" onclick="toggleDirection()" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-medium transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-arrow-right-arrow-left text-amber-600"></i>
+                        <span id="dirLabel">Немецкий → Русский</span>
+                    </button>
+                    <button id="transToggleBtn" onclick="toggleTranscription()" class="px-3 py-1.5 rounded-xl bg-amber-50 text-amber-900 border border-amber-200 font-medium transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-eye"></i>
+                        <span id="transLabel">Транскрипция: ВКЛ</span>
+                    </button>
+                </div>
+                <div class="flex items-center gap-2 text-slate-500 font-medium">
+                    <span id="cardIndexDisplay">1 / 85</span>
+                    <button onclick="shuffleDeck()" class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition" title="Перемешать карточки">
+                        <i class="fa-solid fa-shuffle"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Контейнер 3D карточки -->
+            <div id="flashcardEmpty" class="hidden bg-white rounded-3xl p-10 text-center border border-slate-200 shadow-sm">
+                <div class="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-3 text-2xl">
+                    <i class="fa-solid fa-trophy"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-800">Все карточки в этой теме выучены!</h3>
+                <p class="text-sm text-slate-500 mt-1">Снимите галочку «Только невыученные» или выберите другой раздел.</p>
+            </div>
+
+            <div id="flashcardWrapper" class="perspective-1000 w-full">
+                <div id="flashcardInner" onclick="flipCard()" class="transform-style-3d relative w-full min-h-[300px] sm:min-h-[340px] cursor-pointer select-none">
+                    
+                    <!-- ЛИЦЕВАЯ СТОРОНА -->
+                    <div class="backface-hidden absolute inset-0 bg-white rounded-3xl shadow-md border-2 border-slate-200/90 p-6 sm:p-8 flex flex-col justify-between">
+                        <div class="flex items-center justify-between gap-2">
+                            <span id="frontBadge" class="text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-600">
+                                Категория
+                            </span>
+                            <span id="masteredBadge" class="hidden text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700">
+                                <i class="fa-solid fa-check mr-1"></i>Выучено
+                            </span>
+                        </div>
+
+                        <div class="my-auto text-center py-4 space-y-3">
+                            <div id="frontMainText" class="text-2xl sm:text-3xl font-extrabold text-slate-900 leading-snug">
+                                Ich möchte ein Zimmer reservieren.
+                            </div>
+                            <div id="frontPhonetic" class="text-base sm:text-lg font-medium text-amber-700 bg-amber-50/80 inline-block px-3.5 py-1 rounded-xl border border-amber-200/60">
+                                [Ихь мёхтэ айн цимэр рэзэрвирэн]
+                            </div>
+                            <div id="frontHint" class="text-xs text-slate-400 pt-1">
+                                Нажмите на карточку, чтобы увидеть перевод
+                            </div>
+                        </div>
+
+                        <!-- Кнопки озвучки (останавливают всплытие клика, чтобы не переворачивать карточку) -->
+                        <div class="flex items-center justify-center gap-3 pt-2" onclick="event.stopPropagation()">
+                            <button onclick="speakCurrent(1.0)" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-semibold shadow transition active:scale-95">
+                                <i class="fa-solid fa-volume-high text-amber-400"></i>
+                                <span>Слушать (1.0x)</span>
+                            </button>
+                            <button onclick="speakCurrent(0.72)" class="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs sm:text-sm font-semibold transition active:scale-95">
+                                <i class="fa-solid fa-ear-listen text-slate-600"></i>
+                                <span>Медленно (0.7x)</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- ОБРАТНАЯ СТОРОНА -->
+                    <div class="backface-hidden rotate-y-180 absolute inset-0 bg-slate-900 text-white rounded-3xl shadow-xl border-2 border-slate-700 p-6 sm:p-8 flex flex-col justify-between">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold px-3 py-1 rounded-full bg-slate-800 text-amber-400">
+                                Перевод и разбор
+                            </span>
+                            <span class="text-xs text-slate-400"><i class="fa-solid fa-rotate mr-1"></i>Перевернуть</span>
+                        </div>
+
+                        <div class="my-auto text-center py-4 space-y-3">
+                            <div id="backMainText" class="text-xl sm:text-2xl font-bold text-white leading-snug">
+                                Я хочу забронировать номер.
+                            </div>
+                            <div id="backSecondaryText" class="text-sm sm:text-base text-amber-300 font-medium">
+                                Ich möchte ein Zimmer reservieren.
+                            </div>
+                            <div id="backPhonetic" class="text-xs sm:text-sm text-slate-300">
+                                [Ихь мёхтэ айн цимэр рэзэрвирэн]
+                            </div>
+                            <div id="backNote" class="hidden text-xs text-emerald-300 bg-emerald-950/70 border border-emerald-800/70 rounded-xl px-3 py-2 max-w-md mx-auto mt-2">
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-center gap-3 pt-2" onclick="event.stopPropagation()">
+                            <button onclick="speakCurrent(1.0)" class="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs sm:text-sm font-bold shadow transition">
+                                <i class="fa-solid fa-volume-high"></i>
+                                <span>Произнести</span>
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Панель навигации и оценки знания -->
+            <div id="flashcardControls" class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+                <button onclick="prevCard()" class="py-3 px-4 rounded-2xl bg-white hover:bg-slate-100 border border-slate-200 font-semibold text-slate-700 text-sm shadow-sm transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-chevron-left"></i>
+                    <span>Назад</span>
+                </button>
+                <button onclick="markCard(false)" class="py-3 px-4 rounded-2xl bg-amber-100 hover:bg-amber-200 border border-amber-300 font-bold text-amber-900 text-sm shadow-sm transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    <span>Повторить</span>
+                </button>
+                <button onclick="markCard(true)" class="py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 font-bold text-white text-sm shadow-sm transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-check"></i>
+                    <span>Знаю!</span>
+                </button>
+                <button onclick="nextCard()" class="py-3 px-4 rounded-2xl bg-white hover:bg-slate-100 border border-slate-200 font-semibold text-slate-700 text-sm shadow-sm transition flex items-center justify-center gap-2">
+                    <span>Дальше</span>
+                    <i class="fa-solid fa-chevron-right"></i>
+                </button>
+            </div>
+        </section>
+
+        <!-- ========================================================= -->
+        <!-- РЕЖИМ 2: ПИСЬМЕННЫЙ ТРЕНАЖЕР (ПРАКТИКА НАПИСАНИЯ)          -->
+        <!-- ========================================================= -->
+        <section id="section-typing" class="hidden space-y-4">
+            <div class="bg-white rounded-3xl shadow-md border border-slate-200 p-5 sm:p-8 space-y-5">
+                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                    <span id="typingCategoryBadge" class="text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-600">
+                        Письмо и лексика
+                    </span>
+                    <div class="flex items-center gap-3 text-xs font-semibold">
+                        <span class="text-emerald-600">Верно: <span id="typingScoreOk">0</span></span>
+                        <span class="text-slate-400">|</span>
+                        <span id="typingCounter" class="text-slate-500">Задание 1</span>
+                    </div>
+                </div>
+
+                <!-- Вопрос на русском -->
+                <div class="space-y-2">
+                    <p class="text-xs uppercase tracking-wider font-semibold text-slate-400">Напишите по-немецки:</p>
+                    <h2 id="typingPromptRu" class="text-xl sm:text-2xl font-extrabold text-slate-900">
+                        Я хочу забронировать двухместный номер.
+                    </h2>
+                    <div class="flex flex-wrap items-center gap-2 pt-1">
+                        <button onclick="toggleTypingHint()" class="text-xs px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-medium transition">
+                            <i class="fa-solid fa-lightbulb mr-1"></i>Подсказка (как читается)
+                        </button>
+                        <button onclick="speakTypingTarget()" class="text-xs px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium transition">
+                            <i class="fa-solid fa-volume-high mr-1"></i>Послушать на слух (Диктант)
+                        </button>
+                    </div>
+                    <div id="typingHintBox" class="hidden text-sm font-medium text-amber-800 bg-amber-50/90 px-3.5 py-2 rounded-xl border border-amber-200">
+                        [Ихь мёхтэ айн допэльцимэр рэзэрвирэн]
+                    </div>
+                </div>
+
+                <!-- Поле ввода + виртуальные немецкие умлауты -->
+                <div class="space-y-2.5">
+                    <input type="text" id="typingInput" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+                        placeholder="Введите фразу или слово на немецком..."
+                        onkeydown="if(event.key==='Enter') checkTypingAnswer()"
+                        class="w-full text-base sm:text-lg px-4 py-3.5 rounded-2xl border-2 border-slate-300 focus:border-slate-900 focus:outline-none transition bg-slate-50 focus:bg-white font-medium">
+                    
+                    <!-- Кнопки быстрой вставки немецких букв -->
+                    <div class="flex flex-wrap items-center gap-1.5">
+                        <span class="text-xs text-slate-400 mr-1">Немецкие буквы:</span>
+                        <button type="button" onclick="insertGermanChar('ä')" class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-amber-200 font-bold text-slate-800 text-sm transition">ä</button>
+                        <button type="button" onclick="insertGermanChar('ö')" class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-amber-200 font-bold text-slate-800 text-sm transition">ö</button>
+                        <button type="button" onclick="insertGermanChar('ü')" class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-amber-200 font-bold text-slate-800 text-sm transition">ü</button>
+                        <button type="button" onclick="insertGermanChar('ß')" class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-amber-200 font-bold text-slate-800 text-sm transition">ß</button>
+                        <button type="button" onclick="insertGermanChar('Ä')" class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-amber-200 font-bold text-slate-800 text-sm transition">Ä</button>
+                        <button type="button" onclick="insertGermanChar('Ö')" class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-amber-200 font-bold text-slate-800 text-sm transition">Ö</button>
+                        <button type="button" onclick="insertGermanChar('Ü')" class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-amber-200 font-bold text-slate-800 text-sm transition">Ü</button>
+                    </div>
+                </div>
+
+                <!-- Блок результата проверки -->
+                <div id="typingFeedback" class="hidden rounded-2xl p-4 border text-sm space-y-1.5">
+                    <div id="typingFeedbackTitle" class="font-bold text-base"></div>
+                    <div id="typingCorrectAnswer" class="font-bold text-slate-900 text-base"></div>
+                    <div id="typingCorrectPhonetic" class="text-xs text-slate-600"></div>
+                </div>
+
+                <!-- Кнопки действий -->
+                <div class="flex flex-wrap gap-3 pt-2">
+                    <button id="checkAnswerBtn" onclick="checkTypingAnswer()" class="flex-1 sm:flex-none px-6 py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm shadow transition">
+                        Проверить ответ
+                    </button>
+                    <button onclick="showTypingAnswer()" class="px-4 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm transition">
+                        Показать ответ
+                    </button>
+                    <button onclick="nextTypingQuestion()" class="ml-auto px-5 py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm shadow transition flex items-center gap-2">
+                        <span>Следующее</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================================= -->
+        <!-- РЕЖИМ 3: МОИ ЗАПИСИ, ЛИЧНЫЙ РАССКАЗ О СЕБЕ И СВОИ КАРТОЧКИ-->
+        <!-- ========================================================= -->
+        <section id="section-notes" class="hidden space-y-6">
+            
+            <!-- Блок 1: Конструктор личного рассказа о себе (Sprechen Teil 1) -->
+            <div class="bg-white rounded-3xl shadow-sm border border-slate-200 p-5 sm:p-7 space-y-4">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                        <h2 class="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-user-check text-amber-500"></i>
+                            Мой рассказ о себе (Sprechen, Часть 1)
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-0.5">Запишите свой личный текст по 7 пунктам экзамена, прослушайте произношение и выучите наизусть.</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="speakText(document.getElementById('personalIntroText').value, 0.9)" class="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-volume-high text-amber-400"></i>
+                            <span>Озвучить мой текст</span>
+                        </button>
+                        <button onclick="savePersonalIntro()" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-floppy-disk"></i>
+                            <span>Сохранить</span>
+                        </button>
+                    </div>
+                </div>
+
+                <textarea id="personalIntroText" rows="5" class="w-full rounded-2xl border border-slate-300 p-4 text-sm sm:text-base font-medium text-slate-800 focus:border-slate-900 focus:outline-none bg-slate-50 focus:bg-white leading-relaxed"
+                    placeholder="Напишите ваш рассказ о себе на немецком..."></textarea>
+                
+                <div class="text-xs text-slate-500 bg-amber-50/80 border border-amber-200/80 rounded-xl p-3">
+                    <strong>Подсказка по 7 пунктам:</strong> 1. Имя (Ich heiße...) • 2. Возраст (Ich bin ... Jahre alt) • 3. Страна (Ich komme aus...) • 4. Город (Jetzt wohne ich in Belgrad) • 5. Языки (Ich spreche Russisch, Englisch und ein bisschen Deutsch) • 6. Профессия (Ich bin...) • 7. Хобби (Meine Hobbys sind...).
+                </div>
+            </div>
+
+            <!-- Блок 2: Добавление своих фраз и слов в тренажер -->
+            <div class="bg-white rounded-3xl shadow-sm border border-slate-200 p-5 sm:p-7 space-y-4">
+                <h2 class="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+                    <i class="fa-solid fa-plus-circle text-emerald-600"></i>
+                    Добавить свою фразу или слово в тренажер
+                </h2>
+                <p class="text-xs text-slate-500">Все добавленные записи появятся в списке ниже, их можно озвучивать и тренировать в режимах «Карточки» и «Письмо» (категория «Мои записи»).</p>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">На немецком *</label>
+                        <input type="text" id="customDeInput" placeholder="Например: Ich habe eine Frage." class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-slate-900 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Как читается (русскими буквами)</label>
+                        <input type="text" id="customPhoneticInput" placeholder="Например: Ихь хабэ айнэ фрагэ" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-slate-900 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Перевод на русский *</label>
+                        <input type="text" id="customRuInput" placeholder="Например: У меня есть вопрос." class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-slate-900 focus:outline-none">
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
+                    <button onclick="addCustomCard()" class="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm shadow transition flex items-center gap-2">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>Добавить в мой словарь</span>
+                    </button>
+                    <button onclick="copyAllNotesToClipboard()" class="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs sm:text-sm transition flex items-center gap-2">
+                        <i class="fa-solid fa-copy"></i>
+                        <span>Скопировать мои записи</span>
+                    </button>
+                </div>
+
+                <!-- Список пользовательских записей -->
+                <div class="pt-3 border-t border-slate-100">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Мой личный словарь (<span id="customCardsCount">0</span>)</h3>
+                    <div id="customCardsList" class="space-y-2.5">
+                        <!-- Список рендерится из JS -->
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- Модальное окно подтверждения сброса прогресса -->
+    <div id="resetModal" class="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-4">
+            <h3 class="text-lg font-bold text-slate-900">Сбросить прогресс изучения?</h3>
+            <p class="text-sm text-slate-600">Отметки «Знаю» со всех карточек будут сняты, но ваши личные записи и текст о себе останутся сохраненными.</p>
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="closeResetModal()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm">Отмена</button>
+                <button onclick="confirmResetProgress()" class="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-semibold text-sm">Сбросить</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // =========================================================================
+        // 1. ПОЛНАЯ БАЗА ДАННЫХ ИЗ ДОКУМЕНТА (85+ карточек по всем разделам A1)
+        // =========================================================================
+        const BASE_CARDS = [
+            // --- КАТЕГОРИЯ: ПИСЬМО (Обращения, прощания и конструкции) ---
+            { id: 's1', cat: 'schreiben', de: 'Liebe Anna,', ph: 'Либэ Анна,', ru: 'Дорогая Анна, (неофициальное обращение)', note: 'После обращения ставится запятая, следующее слово — с маленькой буквы!' },
+            { id: 's2', cat: 'schreiben', de: 'Lieber Paul,', ph: 'Либэр Пауль,', ru: 'Дорогой Пауль, (неофициальное обращение)', note: 'Для мужчин используется окончание -er (Lieber).' },
+            { id: 's3', cat: 'schreiben', de: 'Viele Grüße', ph: 'Филе грюсэ', ru: 'Много приветов / С наилучшими пожеланиями (другу)', note: 'После прощальной фразы запятая НЕ ставится.' },
+            { id: 's4', cat: 'schreiben', de: 'Sehr geehrte Damen und Herren,', ph: 'Зэр гэ-эртэ дамэн унд хэрэн,', ru: 'Уважаемые дамы и господа, (официальное обращение)', note: 'Используйте, если пишете в отель, школу или фирму.' },
+            { id: 's5', cat: 'schreiben', de: 'Mit freundlichen Grüßen', ph: 'Мит фройндлихэн грюсэн', ru: 'С уважением / С дружеским приветом (официально)', note: 'В конце напишите имя и фамилию.' },
+            { id: 's6', cat: 'schreiben', de: 'Ich möchte ein Doppelzimmer vom 10. bis 15. Mai reservieren.', ph: 'Ихь мёхтэ айн допэльцимэр фом цэнтэн бис фюнфцэнтэн май рэзэрвирэн', ru: 'Я хочу забронировать двухместный номер с 10 по 15 мая.' },
+            { id: 's7', cat: 'schreiben', de: 'Ich möchte einen Deutschkurs besuchen.', ph: 'Ихь мёхтэ айнэн дойчкурс бэзухэн', ru: 'Я хочу посещать курс немецкого языка.' },
+            { id: 's8', cat: 'schreiben', de: 'Wie viel kostet das Zimmer pro Woche?', ph: 'Ви филь костэт дас цимэр про вохэ?', ru: 'Сколько стоит номер в неделю?' },
+            { id: 's9', cat: 'schreiben', de: 'Haben Sie noch ein Zimmer frei?', ph: 'Хабэн зи нох айн цимэр фрай?', ru: 'У вас еще есть свободный номер?' },
+            { id: 's10', cat: 'schreiben', de: 'Bitte antworten Sie mir schnell.', ph: 'Битэ антвортэн зи мир шнэль', ru: 'Пожалуйста, ответьте мне быстрее.' },
+            { id: 's11', cat: 'schreiben', de: 'Vielen Dank im Voraus.', ph: 'Филен данк им фораус', ru: 'Заранее большое спасибо.' },
+            { id: 's12', cat: 'schreiben', de: 'Ich habe am Samstag Geburtstag und mache eine Party.', ph: 'Ихь хабэ ам замстаг гэбуртстаг унд махэ айнэ парти', ru: 'В субботу у меня день рождения, и я устраиваю вечеринку.' },
+            { id: 's13', cat: 'schreiben', de: 'Ich möchte dich herzlich einladen.', ph: 'Ихь мёхтэ дихь хэрцлихь айнладэн', ru: 'Я хочу сердечно тебя пригласить.' },
+            { id: 's14', cat: 'schreiben', de: 'Die Party beginnt um 18 Uhr bei mir zu Hause.', ph: 'Ди парти бэгинт ум ахтцэн ур бай мир цу хаузэ', ru: 'Вечеринка начинается в 18:00 у меня дома.' },
+            { id: 's15', cat: 'schreiben', de: 'Kannst du bitte einen Salat oder Getränke mitbringen?', ph: 'Канст ду битэ айнэн залат одэр гетрэнкэ митбрингэн?', ru: 'Можешь, пожалуйста, принести салат или напитки?' },
+            { id: 's16', cat: 'schreiben', de: 'Vielen Dank für die Einladung!', ph: 'Филен данк фюр ди айнладунг!', ru: 'Большое спасибо за приглашение!' },
+            { id: 's17', cat: 'schreiben', de: 'Es tut mir sehr leid, aber ich kann leider nicht kommen.', ph: 'Эс тут мир зэр ляйд, абэр ихь кан ляйдэр нихьт комэн', ru: 'Мне очень жаль, но я, к сожалению, не могу прийти.' },
+            { id: 's18', cat: 'schreiben', de: 'Können wir uns am Sonntag treffen?', ph: 'Кёнэн вир унс ам зонтаг трэфэн?', ru: 'Мы можем встретиться в воскресенье?' },
+            { id: 's19', cat: 'schreiben', de: 'Ich brauche bitte deine Hilfe.', ph: 'Ихь браухэ битэ дайнэ хильфэ', ru: 'Мне, пожалуйста, нужна твоя помощь.' },
+            { id: 's20', cat: 'schreiben', de: 'Kannst du mich bitte vom Bahnhof abholen?', ph: 'Канст ду михь битэ фом банхоф абхолен?', ru: 'Можешь меня, пожалуйста, забрать с вокзала?' },
+
+            // --- КАТЕГОРИЯ: ГОВОРЕНИЕ (Sprechen: Знакомство, Вопросы и Просьбы) ---
+            { id: 'sp1', cat: 'sprechen', de: 'Mein Name ist Alex. Ich komme aus Russland.', ph: 'Майн намэ ист Алекс. Ихь комэ аус Русланд', ru: 'Меня зовут Алекс. Я из России.' },
+            { id: 'sp2', cat: 'sprechen', de: 'Jetzt wohne ich in Belgrad.', ph: 'Йетцт вонэ ихь ин Бэльград', ru: 'Сейчас я живу в Белграде.' },
+            { id: 'sp3', cat: 'sprechen', de: 'Ich spreche Russisch, Englisch und ein bisschen Deutsch.', ph: 'Ихь шпрэхэ русиш, энглиш унд айн бисхьэн дойч', ru: 'Я говорю по-русски, по-английски и немного по-немецки.' },
+            { id: 'sp4', cat: 'sprechen', de: 'Meine Hobbys sind Lesen, Musik und Reisen.', ph: 'Майнэ хобис зинд лэзэн, музик унд райзэн', ru: 'Мои хобби — чтение, музыка и путешествия.' },
+            { id: 'sp5', cat: 'sprechen', de: 'Wie buchstabiert man Ihren Namen?', ph: 'Ви бухштабирт ман ирэн намэн?', ru: 'Как пишется ваше имя по буквам? (вопрос экзаменатора)' },
+            { id: 'sp6', cat: 'sprechen', de: 'Wann beginnt der Kurs?', ph: 'Ван бэгинт дэр курс?', ru: 'Когда начинается курс?' },
+            { id: 'sp7', cat: 'sprechen', de: 'Wo kann ich Fahrkarten kaufen?', ph: 'Во кан ихь фаркартэн кауфэн?', ru: 'Где я могу купить билеты?' },
+            { id: 'sp8', cat: 'sprechen', de: 'Wie viel kostet das Ticket?', ph: 'Ви филь костэт дас тикэт?', ru: 'Сколько стоит билет?' },
+            { id: 'sp9', cat: 'sprechen', de: 'Was machst du am Wochenende?', ph: 'Вас махст ду ам вохэнэндэ?', ru: 'Что ты делаешь в выходные?' },
+            { id: 'sp10', cat: 'sprechen', de: 'Haben Sie heute Zeit?', ph: 'Хабэн зи хойтэ цайт?', ru: 'У вас есть сегодня время?' },
+            { id: 'sp11', cat: 'sprechen', de: 'Können Sie mir bitte einen Stift geben?', ph: 'Кёнэн зи мир битэ айнэн штифт гэбэн?', ru: 'Не могли бы вы дать мне, пожалуйста, ручку? (Карточка с предметом)' },
+            { id: 'sp12', cat: 'sprechen', de: 'Können Sie mir bitte ein Glas Wasser geben?', ph: 'Кёнэн зи мир битэ айн глас васэр гэбэн?', ru: 'Не могли бы вы дать мне, пожалуйста, стакан воды?' },
+            { id: 'sp13', cat: 'sprechen', de: 'Können Sie bitte das Fenster öffnen?', ph: 'Кёнэн зи битэ дас фэнстэр ёфнэн?', ru: 'Не могли бы вы, пожалуйста, открыть окно?' },
+            { id: 'sp14', cat: 'sprechen', de: 'Darf ich bitte das Telefon nehmen?', ph: 'Дарф ихь битэ дас тэлефон нэмэн?', ru: 'Можно мне, пожалуйста, взять телефон?' },
+            { id: 'sp15', cat: 'sprechen', de: 'Ja, natürlich! Hier bitte.', ph: 'Я, натюрлихь! Хир битэ', ru: 'Да, конечно! Вот, пожалуйста. (Ответ на просьбу)' },
+            { id: 'sp16', cat: 'sprechen', de: 'Tut mir leid, ich habe leider keinen Stift.', ph: 'Тут мир ляйд, ихь хабэ ляйдэр кайнэн штифт', ru: 'Извините, у меня, к сожалению, нет ручки.' },
+
+            // --- КАТЕГОРИЯ: АНКЕТА (Formular ausfüllen - Schreiben Teil 1) ---
+            { id: 'f1', cat: 'formular', de: 'Familienname / Nachname', ph: 'Фамилиэн-намэ / Нахнамэ', ru: 'Фамилия (графа в анкете)' },
+            { id: 'f2', cat: 'formular', de: 'Vorname', ph: 'Форнамэ', ru: 'Имя (графа в анкете)' },
+            { id: 'f3', cat: 'formular', de: 'Geburtsdatum / Geburtsort', ph: 'Гэбуртс-датум / Гэбуртс-орт', ru: 'Дата рождения / Место рождения' },
+            { id: 'f4', cat: 'formular', de: 'Staatsangehörigkeit', ph: 'Штатс-ангэхёрихькайт', ru: 'Гражданство (напр.: russisch, serbisch)' },
+            { id: 'f5', cat: 'formular', de: 'Familienstand', ph: 'Фамилиэн-штанд', ru: 'Семейное положение' },
+            { id: 'f6', cat: 'formular', de: 'ledig', ph: 'лэдихь', ru: 'холост / не замужем' },
+            { id: 'f7', cat: 'formular', de: 'verheiratet', ph: 'фэрхайратэт', ru: 'женат / замужем' },
+            { id: 'f8', cat: 'formular', de: 'geschieden', ph: 'гэшидэн', ru: 'в разводе' },
+            { id: 'f9', cat: 'formular', de: 'Anzahl der Kinder', ph: 'Анцаль дэр киндэр', ru: 'Количество детей (0 / keine)' },
+            { id: 'f10', cat: 'formular', de: 'Zahlungsweise', ph: 'Цалунгсвайзэ', ru: 'Способ оплаты' },
+            { id: 'f11', cat: 'formular', de: 'bar / mit Kreditkarte / per Überweisung', ph: 'бар / мит крэдиткартэ / пэр юбэрвайзунг', ru: 'наличными / картой / банковским переводом' },
+            { id: 'f12', cat: 'formular', de: 'Unterschrift', ph: 'Унтэршрифт', ru: 'Подпись (пишется фамилия человека из задания!)' },
+
+            // --- КАТЕГОРИЯ: ЧИСЛА, ДНИ И ВРЕМЯ (Ловушки Hören/Lesen) ---
+            { id: 'n1', cat: 'numbers', de: 'dreizehn / dreißig', ph: 'драйцэн / драйсихь', ru: '13 (тринадцать) / 30 (тридцать)', note: 'Окончание -zehn = 13..19, окончание -zig/-ßig = десятки!' },
+            { id: 'n2', cat: 'numbers', de: 'vierzehn / vierzig', ph: 'фирцэн / фирцихь', ru: '14 (четырнадцать) / 40 (сорок)' },
+            { id: 'n3', cat: 'numbers', de: 'fünfzehn / fünfzig', ph: 'фюнфцэн / фюнфцихь', ru: '15 (пятнадцать) / 50 (пятьдесят)' },
+            { id: 'n4', cat: 'numbers', de: 'sechzehn / sechzig', ph: 'зэхьцэн / зэхьцихь', ru: '16 (шестнадцать) / 60 (шестьдесят)' },
+            { id: 'n5', cat: 'numbers', de: 'siebzehn / siebzig', ph: 'зибцэн / зибцихь', ru: '17 (семнадцать) / 70 (семьдесят)' },
+            { id: 'n6', cat: 'numbers', de: 'achtzehn / achtzig', ph: 'ахтцэн / ахтцихь', ru: '18 (восемнадцать) / 80 (восемьдесят)' },
+            { id: 'n7', cat: 'numbers', de: 'neunzehn / neunzig', ph: 'нойнцэн / нойнцихь', ru: '19 (девятнадцать) / 90 (девяносто)' },
+            { id: 'n8', cat: 'numbers', de: 'um halb neun', ph: 'ум хальб нойн', ru: 'в 8:30 (в половине девятого!)', note: 'Ловушка! Halb neun — это 8:30, а НЕ 9:30!' },
+            { id: 'n9', cat: 'numbers', de: 'um Viertel nach acht', ph: 'ум фиртэль нах ахт', ru: 'в 8:15 (четверть девятого)' },
+            { id: 'n10', cat: 'numbers', de: 'um Viertel vor neun', ph: 'ум фиртэль фор нойн', ru: 'в 8:45 (без четверти девять)' },
+            { id: 'n11', cat: 'numbers', de: 'am Montag / am Wochenende', ph: 'ам монтаг / ам вохэнэндэ', ru: 'в понедельник / в выходные (дни недели с предлогом am)' },
+            { id: 'n12', cat: 'numbers', de: 'im Januar / im Juli', ph: 'им януар / им юли', ru: 'в январе / в июле (месяцы с предлогом im)' },
+            { id: 'n13', cat: 'numbers', de: 'von Montag bis Freitag', ph: 'фон монтаг бис фрайтаг', ru: 'с понедельника до пятницы' },
+
+            // --- КАТЕГОРИЯ: СИНОНИМЫ И ЛОВУШКИ LESEN / HÖREN ---
+            { id: 'syn1', cat: 'synonyms', de: 'geschlossen = nicht geöffnet', ph: 'гэшлосэн = нихьт гэ-ёфнэт', ru: 'закрыто = не открыто' },
+            { id: 'syn2', cat: 'synonyms', de: 'Eintritt frei = kostenlos', ph: 'айнтрит фрай = костэнлос', ru: 'вход свободный = бесплатно (ничего не платить)' },
+            { id: 'syn3', cat: 'synonyms', de: 'verboten = man darf nicht', ph: 'фэрботэн = ман дарф нихьт', ru: 'запрещено = нельзя' },
+            { id: 'syn4', cat: 'synonyms', de: 'Gleis = Bahnsteig', ph: 'гляйс = банштайг', ru: 'железнодорожный путь = платформа на вокзале' },
+            { id: 'syn5', cat: 'synonyms', de: 'Durchsage = Ansage', ph: 'дурхьзагэ = анзагэ', ru: 'объявление по громкой связи = оповещение' },
+            { id: 'syn6', cat: 'synonyms', de: 'umsteigen = einen anderen Zug nehmen', ph: 'умштайгэн = айнэн андэрэн цуг нэмэн', ru: 'пересадка = сесть на другой поезд' },
+            { id: 'syn7', cat: 'synonyms', de: 'Erdgeschoss (EG) = unten', ph: 'эрдгэшос = унтэн', ru: 'первый этаж = внизу' },
+            { id: 'syn8', cat: 'synonyms', de: 'Anmeldung = Rezeption', ph: 'анмэльдунг = рэцэпцион', ru: 'регистратура = ресепшен / стойка регистрации' },
+            { id: 'syn9', cat: 'synonyms', de: 'Sonderangebot / reduziert = billiger', ph: 'зондэр-ангэбот / рэдуцирт = билигэр', ru: 'акция / со скидкой = дешевле' },
+            { id: 'syn10', cat: 'synonyms', de: 'heute leider nicht = erst morgen', ph: 'хойтэ ляйдэр нихьт = эрст моргэн', ru: 'сегодня, к сожалению, нет = только завтра' },
+
+            // --- КАТЕГОРИЯ: 30 ГЛАВНЫХ ГЛАГОЛОВ УРОВНЯ A1 ---
+            { id: 'v1', cat: 'verbs', de: 'ankommen', ph: 'анкомэн', ru: 'прибывать (Der Zug kommt um 14 Uhr an.)' },
+            { id: 'v2', cat: 'verbs', de: 'abfahren', ph: 'абфарэн', ru: 'отправляться (Wann fährt der Bus ab?)' },
+            { id: 'v3', cat: 'verbs', de: 'umsteigen', ph: 'умштайгэн', ru: 'пересаживаться (In München müssen Sie umsteigen.)' },
+            { id: 'v4', cat: 'verbs', de: 'bestellen', ph: 'бэштэлен', ru: 'заказывать (Ich möchte einen Kaffee bestellen.)' },
+            { id: 'v5', cat: 'verbs', de: 'bezahlen', ph: 'бэцален', ru: 'оплачивать (Kann ich mit Karte bezahlen?)' },
+            { id: 'v6', cat: 'verbs', de: 'buchen / reservieren', ph: 'бухэн / рэзэрвирэн', ru: 'бронировать (Ich möchte ein Zimmer buchen.)' },
+            { id: 'v7', cat: 'verbs', de: 'einladen', ph: 'айнладэн', ru: 'приглашать (Ich lade dich zur Party ein.)' },
+            { id: 'v8', cat: 'verbs', de: 'besuchen', ph: 'бэзухэн', ru: 'посещать / навещать (Ich möchte einen Kurs besuchen.)' },
+            { id: 'v9', cat: 'verbs', de: 'helfen', ph: 'хэльфэн', ru: 'помогать (Können Sie mir bitte helfen?)' },
+            { id: 'v10', cat: 'verbs', de: 'mitbringen', ph: 'митбрингэн', ru: 'приносить с собой (Bring bitte Salate mit.)' },
+            { id: 'v11', cat: 'verbs', de: 'öffnen', ph: 'ёфнэн', ru: 'открывать (Bitte öffnen Sie das Fenster.)' },
+            { id: 'v12', cat: 'verbs', de: 'schließen', ph: 'шлисэн', ru: 'закрывать (Die Bank schließt um 18 Uhr.)' },
+            { id: 'v13', cat: 'verbs', de: 'suchen', ph: 'зухэн', ru: 'искать (Ich suche den Bahnhof.)' },
+            { id: 'v14', cat: 'verbs', de: 'finden', ph: 'финдэн', ru: 'находить (Ich finde den Schlüssel nicht.)' },
+            { id: 'v15', cat: 'verbs', de: 'kaufen', ph: 'кауфэн', ru: 'покупать (Ich kaufe ein Ticket.)' },
+            { id: 'v16', cat: 'verbs', de: 'verkaufen', ph: 'фэркауфэн', ru: 'продавать (Er verkauft sein Auto.)' },
+            { id: 'v17', cat: 'verbs', de: 'kosten', ph: 'костэн', ru: 'стоить (Was kostet die Fahrkarte?)' },
+            { id: 'v18', cat: 'verbs', de: 'brauchen', ph: 'браухэн', ru: 'нуждаться (Ich brauche Ihre Hilfe.)' },
+            { id: 'v19', cat: 'verbs', de: 'möchten', ph: 'мёхтэн', ru: 'хотел бы (Ich möchte Tee trinken.)' },
+            { id: 'v20', cat: 'verbs', de: 'können', ph: 'кёнэн', ru: 'мочь / уметь (Kannst du kommen?)' },
+            { id: 'v21', cat: 'verbs', de: 'müssen', ph: 'мюсэн', ru: 'быть должным (Ich muss heute arbeiten.)' },
+            { id: 'v22', cat: 'verbs', de: 'dürfen', ph: 'дюрфэн', ru: 'иметь разрешение (Hier darf man nicht rauchen.)' },
+            { id: 'v23', cat: 'verbs', de: 'wollen', ph: 'волен', ru: 'хотеть (Wir wollen nach Berlin fahren.)' },
+            { id: 'v24', cat: 'verbs', de: 'sollen', ph: 'золен', ru: 'быть обязанным / следовать (Was soll ich mitbringen?)' },
+            { id: 'v25', cat: 'verbs', de: 'verstehen', ph: 'фэрштэ-эн', ru: 'понимать (Ich verstehe das nicht.)' },
+            { id: 'v26', cat: 'verbs', de: 'wiederholen', ph: 'видэрхолен', ru: 'повторять (Können Sie das wiederholen?)' },
+            { id: 'v27', cat: 'verbs', de: 'buchstabieren', ph: 'бухштабирэн', ru: 'диктовать по буквам (Bitte buchstabieren Sie Ihren Namen.)' },
+            { id: 'v28', cat: 'verbs', de: 'fragen', ph: 'фрагэн', ru: 'спрашивать (Darf ich etwas fragen?)' },
+            { id: 'v29', cat: 'verbs', de: 'antworten', ph: 'антвортэн', ru: 'отвечать (Bitte antworten Sie mir bald.)' },
+            { id: 'v30', cat: 'verbs', de: 'treffen', ph: 'трэфэн', ru: 'встречать(ся) (Wir treffen uns am Sonntag.)' },
+
+            // --- КАТЕГОРИЯ: ФРАЗЫ-ВЫРУЧАЛКИ ---
+            { id: 'r1', cat: 'rescue', de: 'Wie bitte? Können Sie das bitte wiederholen?', ph: 'Ви битэ? Кёнэн зи дас битэ видэрхолен?', ru: 'Простите? Не могли бы вы это повторить?' },
+            { id: 'r2', cat: 'rescue', de: 'Können Sie bitte etwas langsamer sprechen?', ph: 'Кёнэн зи битэ этвас лангзамэр шпрэхэн?', ru: 'Не могли бы вы говорить немного медленнее?' },
+            { id: 'r3', cat: 'rescue', de: 'Ich habe die Frage leider nicht verstanden.', ph: 'Ихь хабэ ди фрагэ ляйдэр нихьт фэрштандэн', ru: 'Я, к сожалению, не понял(а) вопрос.' },
+            { id: 'r4', cat: 'rescue', de: 'Einen Moment bitte...', ph: 'Айнэн момэнт битэ...', ru: 'Одну минуту, пожалуйста...' },
+            { id: 'r5', cat: 'rescue', de: 'Vielen Dank! Bitte schön!', ph: 'Филен данк! Битэ шён!', ru: 'Большое спасибо! Пожалуйста!' }
+        ];
+
+        const CATEGORIES = [
+            { id: 'all', label: 'Все темы' },
+            { id: 'schreiben', label: 'Письмо (Шаблоны)' },
+            { id: 'sprechen', label: 'Говорение' },
+            { id: 'formular', label: 'Анкета' },
+            { id: 'numbers', label: 'Числа и время' },
+            { id: 'synonyms', label: 'Синонимы-ловушки' },
+            { id: 'verbs', label: '30 глаголов A1' },
+            { id: 'rescue', label: 'Фразы-выручалки' },
+            { id: 'custom', label: 'Мои записи' }
+        ];
+
+        // =========================================================================
+        // 2. СОСТОЯНИЕ ПРИЛОЖЕНИЯ И ХРАНИЛИЩЕ (localStorage)
+        // =========================================================================
+        let state = {
+            mode: 'flashcards', // 'flashcards' | 'typing' | 'notes'
+            category: 'all',
+            onlyUnmastered: false,
+            direction: 'de-ru', // 'de-ru' | 'ru-de'
+            showPhonetic: true,
+            currentIndex: 0,
+            isFlipped: false,
+            masteredIds: [],
+            customCards: [],
+            personalIntro: "Hallo! Mein Name ist Alex. Ich bin 39 Jahre alt. Ich komme aus Russland. Jetzt wohne ich in Belgrad. Ich spreche Russisch, Englisch und ein bisschen Deutsch. Meine Hobbys sind Lesen und Reisen.",
+            typingIndex: 0,
+            typingCorrectCount: 0,
+            typingAnswered: false
+        };
+
+        let filteredCards = [];
+
+        function loadState() {
+            try {
+                const savedMastered = localStorage.getItem('goethe_a1_mastered');
+                if (savedMastered) state.masteredIds = JSON.parse(savedMastered);
+
+                const savedCustom = localStorage.getItem('goethe_a1_custom_cards');
+                if (savedCustom) state.customCards = JSON.parse(savedCustom);
+
+                const savedIntro = localStorage.getItem('goethe_a1_personal_intro');
+                if (savedIntro) state.personalIntro = savedIntro;
+            } catch (e) {
+                console.warn('Ошибка чтения localStorage:', e);
+            }
+        }
+
+        function saveState() {
+            try {
+                localStorage.setItem('goethe_a1_mastered', JSON.stringify(state.masteredIds));
+                localStorage.setItem('goethe_a1_custom_cards', JSON.stringify(state.customCards));
+                localStorage.setItem('goethe_a1_personal_intro', state.personalIntro);
+            } catch (e) {
+                console.warn('Ошибка записи в localStorage:', e);
+            }
+        }
+
+        function getAllCards() {
+            return [...BASE_CARDS, ...state.customCards];
+        }
+
+        // =========================================================================
+        // 3. ОЗВУЧКА НЕМЕЦКОГО ТЕКСТА (Web Speech API)
+        // =========================================================================
+        function speakText(text, rate = 1.0) {
+            if (!('speechSynthesis' in window)) {
+                showToast('Ваш браузер не поддерживает голосовую озвучку', 'warning');
+                return;
+            }
+            window.speechSynthesis.cancel();
+            // Очищаем текст от символов "/" и пояснений в скобках для естественного произношения
+            const cleanText = text
+                .replace(/\(.*?\)/g, '')
+                .replace(/=/g, ', ')
+                .replace(/\//g, ', ')
+                .trim();
+
+            const utterance = new SpeechSynthesisUtterance(cleanText);
+            utterance.lang = 'de-DE';
+            utterance.rate = rate;
+
+            // Попытка выбрать качественный немецкий голос, если доступен
+            const voices = window.speechSynthesis.getVoices();
+            const deVoice = voices.find(v => v.lang.includes('de-DE') || v.lang.includes('de_DE') || v.lang.startsWith('de'));
+            if (deVoice) utterance.voice = deVoice;
+
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function speakCurrent(rate) {
+            if (!filteredCards.length) return;
+            const card = filteredCards[state.currentIndex];
+            speakText(card.de, rate);
+        }
+
+        function speakTypingTarget() {
+            if (!filteredCards.length) return;
+            const card = filteredCards[state.typingIndex % filteredCards.length];
+            speakText(card.de, 0.95);
+        }
+
+        // =========================================================================
+        // 4. ФИЛЬТРАЦИЯ И ОБНОВЛЕНИЕ ПРОГРЕССА
+        // =========================================================================
+        function renderCategories() {
+            const container = document.getElementById('categoryContainer');
+            container.innerHTML = '';
+            CATEGORIES.forEach(cat => {
+                const isActive = state.category === cat.id;
+                const count = cat.id === 'all'
+                    ? getAllCards().length
+                    : getAllCards().filter(c => c.cat === cat.id).length;
+
+                const btn = document.createElement('button');
+                btn.onclick = () => {
+                    state.category = cat.id;
+                    state.currentIndex = 0;
+                    state.typingIndex = 0;
+                    state.isFlipped = false;
+                    renderCategories();
+                    applyFilters();
+                };
+                btn.className = `shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 ${
+                    isActive
+                        ? 'bg-slate-900 text-white shadow-sm'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`;
+                btn.innerHTML = `<span>${cat.label}</span><span class="text-[10px] px-1.5 py-0.5 rounded-full ${isActive ? 'bg-amber-500 text-slate-950 font-bold' : 'bg-slate-200 text-slate-600'}">${count}</span>`;
+                container.appendChild(btn);
+            });
+        }
+
+        function applyFilters() {
+            state.onlyUnmastered = document.getElementById('onlyUnmasteredCheckbox').checked;
+            let cards = getAllCards();
+
+            if (state.category !== 'all') {
+                cards = cards.filter(c => c.cat === state.category);
+            }
+            if (state.onlyUnmastered) {
+                cards = cards.filter(c => !state.masteredIds.includes(c.id));
+            }
+
+            filteredCards = cards;
+            if (state.currentIndex >= filteredCards.length) state.currentIndex = 0;
+            if (state.typingIndex >= filteredCards.length) state.typingIndex = 0;
+
+            updateProgressUI();
+            renderFlashcard();
+            renderTypingQuestion();
+        }
+
+        function updateProgressUI() {
+            const total = getAllCards().length;
+            const mastered = state.masteredIds.filter(id => getAllCards().some(c => c.id === id)).length;
+            document.getElementById('masteredCount').textContent = mastered;
+            document.getElementById('totalCount').textContent = total;
+            const pct = total > 0 ? Math.round((mastered / total) * 100) : 0;
+            document.getElementById('progressBar').style.width = pct + '%';
+        }
+
+        // =========================================================================
+        // 5. ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК И ЛОГИКА ФЛЕШ-КАРТОЧЕК
+        // =========================================================================
+        function switchMode(mode) {
+            state.mode = mode;
+            ['flashcards', 'typing', 'notes'].forEach(m => {
+                const sec = document.getElementById(`section-${m}`);
+                const tab = document.getElementById(`tab-${m}`);
+                if (m === mode) {
+                    sec.classList.remove('hidden');
+                    tab.className = 'mode-btn flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-semibold text-xs sm:text-sm transition bg-amber-500 text-slate-950 shadow';
+                } else {
+                    sec.classList.add('hidden');
+                    tab.className = 'mode-btn flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-semibold text-xs sm:text-sm transition bg-slate-800 text-slate-300 hover:bg-slate-700';
+                }
+            });
+
+            // В режиме заметок скрываем верхнюю панель категорий
+            const catWrapper = document.getElementById('categoryBarWrapper');
+            if (mode === 'notes') {
+                catWrapper.classList.add('hidden');
+                renderCustomCardsList();
+            } else {
+                catWrapper.classList.remove('hidden');
+                applyFilters();
+            }
+        }
+
+        function getCategoryName(catId) {
+            const found = CATEGORIES.find(c => c.id === catId);
+            return found ? found.label : 'A1';
+        }
+
+        function renderFlashcard() {
+            const emptyEl = document.getElementById('flashcardEmpty');
+            const wrapperEl = document.getElementById('flashcardWrapper');
+            const controlsEl = document.getElementById('flashcardControls');
+            const innerEl = document.getElementById('flashcardInner');
+
+            if (!filteredCards.length) {
+                emptyEl.classList.remove('hidden');
+                wrapperEl.classList.add('hidden');
+                controlsEl.classList.add('hidden');
+                document.getElementById('cardIndexDisplay').textContent = '0 / 0';
+                return;
+            }
+
+            emptyEl.classList.add('hidden');
+            wrapperEl.classList.remove('hidden');
+            controlsEl.classList.remove('hidden');
+
+            const card = filteredCards[state.currentIndex];
+            document.getElementById('cardIndexDisplay').textContent = `${state.currentIndex + 1} / ${filteredCards.length}`;
+            document.getElementById('frontBadge').textContent = getCategoryName(card.cat);
+
+            const isMastered = state.masteredIds.includes(card.id);
+            const masteredBadge = document.getElementById('masteredBadge');
+            if (isMastered) masteredBadge.classList.remove('hidden');
+            else masteredBadge.classList.add('hidden');
+
+            // Сброс переворота без визуального скачка
+            if (state.isFlipped) innerEl.classList.add('rotate-y-180');
+            else innerEl.classList.remove('rotate-y-180');
+
+            const frontMain = document.getElementById('frontMainText');
+            const frontPh = document.getElementById('frontPhonetic');
+            const backMain = document.getElementById('backMainText');
+            const backSec = document.getElementById('backSecondaryText');
+            const backPh = document.getElementById('backPhonetic');
+            const backNote = document.getElementById('backNote');
+
+            if (state.direction === 'de-ru') {
+                frontMain.textContent = card.de;
+                if (state.showPhonetic && card.ph) {
+                    frontPh.textContent = `[${card.ph}]`;
+                    frontPh.classList.remove('hidden');
+                } else {
+                    frontPh.classList.add('hidden');
+                }
+                backMain.textContent = card.ru;
+                backSec.textContent = card.de;
+                backPh.textContent = card.ph ? `[${card.ph}]` : '';
+            } else {
+                frontMain.textContent = card.ru;
+                frontPh.classList.add('hidden');
+                backMain.textContent = card.de;
+                backSec.textContent = card.ph ? `[${card.ph}]` : '';
+                backPh.textContent = card.ru;
+            }
+
+            if (card.note) {
+                backNote.textContent = '💡 ' + card.note;
+                backNote.classList.remove('hidden');
+            } else {
+                backNote.classList.add('hidden');
+            }
+        }
+
+        function flipCard() {
+            state.isFlipped = !state.isFlipped;
+            const innerEl = document.getElementById('flashcardInner');
+            if (state.isFlipped) innerEl.classList.add('rotate-y-180');
+            else innerEl.classList.remove('rotate-y-180');
+        }
+
+        function nextCard() {
+            if (!filteredCards.length) return;
+            state.isFlipped = false;
+            state.currentIndex = (state.currentIndex + 1) % filteredCards.length;
+            renderFlashcard();
+        }
+
+        function prevCard() {
+            if (!filteredCards.length) return;
+            state.isFlipped = false;
+            state.currentIndex = (state.currentIndex - 1 + filteredCards.length) % filteredCards.length;
+            renderFlashcard();
+        }
+
+        function markCard(known) {
+            if (!filteredCards.length) return;
+            const card = filteredCards[state.currentIndex];
+            if (known) {
+                if (!state.masteredIds.includes(card.id)) {
+                    state.masteredIds.push(card.id);
+                }
+                showToast('Отмечено как выученное!', 'success');
+            } else {
+                state.masteredIds = state.masteredIds.filter(id => id !== card.id);
+                showToast('Оставлено на повторение', 'info');
+            }
+            saveState();
+            updateProgressUI();
+
+            if (state.onlyUnmastered && known) {
+                applyFilters();
+            } else {
+                nextCard();
+            }
+        }
+
+        function toggleDirection() {
+            state.direction = state.direction === 'de-ru' ? 'ru-de' : 'de-ru';
+            document.getElementById('dirLabel').textContent = state.direction === 'de-ru'
+                ? 'Немецкий → Русский'
+                : 'Русский → Немецкий';
+            state.isFlipped = false;
+            renderFlashcard();
+        }
+
+        function toggleTranscription() {
+            state.showPhonetic = !state.showPhonetic;
+            document.getElementById('transLabel').textContent = state.showPhonetic
+                ? 'Транскрипция: ВКЛ'
+                : 'Транскрипция: ВЫКЛ';
+            renderFlashcard();
+        }
+
+        function shuffleDeck() {
+            for (let i = filteredCards.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [filteredCards[i], filteredCards[j]] = [filteredCards[j], filteredCards[i]];
+            }
+            state.currentIndex = 0;
+            state.isFlipped = false;
+            renderFlashcard();
+            showToast('Карточки перемешаны', 'info');
+        }
+
+        // =========================================================================
+        // 6. ПИСЬМЕННЫЙ ТРЕНАЖЕР (ПРОВЕРКА ПРАВОПИСАНИЯ)
+        // =========================================================================
+        function renderTypingQuestion() {
+            const promptEl = document.getElementById('typingPromptRu');
+            const badgeEl = document.getElementById('typingCategoryBadge');
+            const hintBox = document.getElementById('typingHintBox');
+            const inputEl = document.getElementById('typingInput');
+            const feedbackEl = document.getElementById('typingFeedback');
+
+            hintBox.classList.add('hidden');
+            feedbackEl.classList.add('hidden');
+            inputEl.value = '';
+            inputEl.className = 'w-full text-base sm:text-lg px-4 py-3.5 rounded-2xl border-2 border-slate-300 focus:border-slate-900 focus:outline-none transition bg-slate-50 focus:bg-white font-medium';
+            state.typingAnswered = false;
+
+            if (!filteredCards.length) {
+                promptEl.textContent = 'Нет карточек в выбранном фильтре.';
+                return;
+            }
+
+            const card = filteredCards[state.typingIndex % filteredCards.length];
+            badgeEl.textContent = getCategoryName(card.cat);
+            promptEl.textContent = card.ru;
+            hintBox.textContent = card.ph ? `Подсказка: [${card.ph}]` : 'Подсказка отсутствует для этой карточки';
+            document.getElementById('typingCounter').textContent = `Задание ${(state.typingIndex % filteredCards.length) + 1} из ${filteredCards.length}`;
+        }
+
+        function toggleTypingHint() {
+            document.getElementById('typingHintBox').classList.toggle('hidden');
+        }
+
+        function insertGermanChar(char) {
+            const input = document.getElementById('typingInput');
+            const start = input.selectionStart || input.value.length;
+            const end = input.selectionEnd || input.value.length;
+            input.value = input.value.substring(0, start) + char + input.value.substring(end);
+            input.focus();
+            input.setSelectionRange(start + 1, start + 1);
+        }
+
+        function normalizeString(str) {
+            return str
+                .toLowerCase()
+                .replace(/[.,!?;:()„“"']/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        function checkTypingAnswer() {
+            if (!filteredCards.length) return;
+            const card = filteredCards[state.typingIndex % filteredCards.length];
+            const userVal = document.getElementById('typingInput').value;
+            if (!userVal.trim()) {
+                showToast('Сначала введите ответ на немецком', 'warning');
+                return;
+            }
+
+            // Поддержка вариантов через "/" или "=" (например "buchen / reservieren")
+            const acceptedVariants = card.de.split(/\/|=/).map(v => normalizeString(v));
+            const fullNormalized = normalizeString(card.de);
+            const userNormalized = normalizeString(userVal);
+
+            const isCorrect = userNormalized === fullNormalized || acceptedVariants.includes(userNormalized);
+
+            const feedbackEl = document.getElementById('typingFeedback');
+            const titleEl = document.getElementById('typingFeedbackTitle');
+            const ansEl = document.getElementById('typingCorrectAnswer');
+            const phEl = document.getElementById('typingCorrectPhonetic');
+            const inputEl = document.getElementById('typingInput');
+
+            feedbackEl.classList.remove('hidden', 'bg-emerald-50', 'border-emerald-300', 'bg-red-50', 'border-red-300');
+
+            if (isCorrect) {
+                feedbackEl.classList.add('bg-emerald-50', 'border-emerald-300');
+                titleEl.innerHTML = '<span class="text-emerald-700"><i class="fa-solid fa-circle-check mr-1.5"></i>Отлично! Всё правильно!</span>';
+                inputEl.classList.add('border-emerald-500', 'bg-emerald-50/30');
+                if (!state.typingAnswered) {
+                    state.typingCorrectCount++;
+                    document.getElementById('typingScoreOk').textContent = state.typingCorrectCount;
+                }
+            } else {
+                feedbackEl.classList.add('bg-red-50', 'border-red-300');
+                titleEl.innerHTML = '<span class="text-red-700"><i class="fa-solid fa-circle-xmark mr-1.5"></i>Есть неточность. Сравните с эталоном:</span>';
+                inputEl.classList.add('border-red-400', 'bg-red-50/30');
+            }
+
+            ansEl.textContent = card.de;
+            phEl.textContent = card.ph ? `[${card.ph}]` : '';
+            state.typingAnswered = true;
+            speakText(card.de, 0.95);
+        }
+
+        function showTypingAnswer() {
+            if (!filteredCards.length) return;
+            const card = filteredCards[state.typingIndex % filteredCards.length];
+            const feedbackEl = document.getElementById('typingFeedback');
+            feedbackEl.classList.remove('hidden', 'bg-emerald-50', 'border-emerald-300', 'bg-red-50', 'border-red-300');
+            feedbackEl.classList.add('bg-amber-50', 'border-amber-300');
+            document.getElementById('typingFeedbackTitle').innerHTML = '<span class="text-amber-800"><i class="fa-solid fa-eye mr-1.5"></i>Правильный вариант:</span>';
+            document.getElementById('typingCorrectAnswer').textContent = card.de;
+            document.getElementById('typingCorrectPhonetic').textContent = card.ph ? `[${card.ph}]` : '';
+            speakText(card.de, 0.95);
+        }
+
+        function nextTypingQuestion() {
+            if (!filteredCards.length) return;
+            state.typingIndex = (state.typingIndex + 1) % filteredCards.length;
+            renderTypingQuestion();
+        }
+
+        // =========================================================================
+        // 7. ЛИЧНЫЙ БЛОКНОТ И ПОЛЬЗОВАТЕЛЬСКИЕ КАРТОЧКИ
+        // =========================================================================
+        function savePersonalIntro() {
+            state.personalIntro = document.getElementById('personalIntroText').value;
+            saveState();
+            showToast('Ваш рассказ о себе сохранен!', 'success');
+        }
+
+        function addCustomCard() {
+            const de = document.getElementById('customDeInput').value.trim();
+            const ph = document.getElementById('customPhoneticInput').value.trim();
+            const ru = document.getElementById('customRuInput').value.trim();
+
+            if (!de || !ru) {
+                showToast('Заполните немецкую фразу и перевод на русский', 'warning');
+                return;
+            }
+
+            const newCard = {
+                id: 'custom_' + Date.now(),
+                cat: 'custom',
+                de: de,
+                ph: ph,
+                ru: ru
+            };
+
+            state.customCards.unshift(newCard);
+            saveState();
+
+            document.getElementById('customDeInput').value = '';
+            document.getElementById('customPhoneticInput').value = '';
+            document.getElementById('customRuInput').value = '';
+
+            renderCustomCardsList();
+            renderCategories();
+            updateProgressUI();
+            showToast('Запись добавлена в тренажер!', 'success');
+        }
+
+        function deleteCustomCard(id) {
+            state.customCards = state.customCards.filter(c => c.id !== id);
+            state.masteredIds = state.masteredIds.filter(mId => mId !== id);
+            saveState();
+            renderCustomCardsList();
+            renderCategories();
+            updateProgressUI();
+            showToast('Запись удалена', 'info');
+        }
+
+        function renderCustomCardsList() {
+            const listEl = document.getElementById('customCardsList');
+            document.getElementById('customCardsCount').textContent = state.customCards.length;
+
+            if (!state.customCards.length) {
+                listEl.innerHTML = '<div class="text-sm text-slate-400 py-4 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">У вас пока нет своих записей. Добавьте первую фразу выше!</div>';
+                return;
+            }
+
+            listEl.innerHTML = '';
+            state.customCards.forEach(item => {
+                const row = document.createElement('div');
+                row.className = 'flex items-center justify-between gap-3 p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 hover:border-slate-300 transition';
+                row.innerHTML = `
+                    <div class="space-y-0.5">
+                        <div class="font-bold text-slate-900 text-sm sm:text-base">${escapeHtml(item.de)}</div>
+                        ${item.ph ? `<div class="text-xs text-amber-700 font-medium">[${escapeHtml(item.ph)}]</div>` : ''}
+                        <div class="text-xs sm:text-sm text-slate-600">${escapeHtml(item.ru)}</div>
+                    </div>
+                    <div class="flex items-center gap-1.5 shrink-0">
+                        <button onclick="speakText('${escapeJs(item.de)}', 0.95)" class="p-2.5 rounded-xl bg-white hover:bg-slate-200 text-slate-800 border border-slate-200 transition" title="Озвучить">
+                            <i class="fa-solid fa-volume-high text-xs"></i>
+                        </button>
+                        <button onclick="deleteCustomCard('${item.id}')" class="p-2.5 rounded-xl bg-white hover:bg-red-50 text-red-500 border border-slate-200 transition" title="Удалить">
+                            <i class="fa-solid fa-trash-can text-xs"></i>
+                        </button>
+                    </div>
+                `;
+                listEl.appendChild(row);
+            });
+        }
+
+        function copyAllNotesToClipboard() {
+            let text = "=== МОЙ РАССКАЗ О СЕБЕ (GOETHE A1) ===\n" + document.getElementById('personalIntroText').value + "\n\n";
+            if (state.customCards.length) {
+                text += "=== МОИ ФРАЗЫ И СЛОВА ===\n";
+                state.customCards.forEach((c, idx) => {
+                    text += `${idx + 1}. ${c.de} ${c.ph ? `[${c.ph}]` : ''} — ${c.ru}\n`;
+                });
+            }
+
+            const tempArea = document.createElement('textarea');
+            tempArea.value = text;
+            document.body.appendChild(tempArea);
+            tempArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempArea);
+            showToast('Все записи скопированы в буфер обмена!', 'success');
+        }
+
+        // =========================================================================
+        // 8. УТИЛИТЫ И ИНИЦИАЛИЗАЦИЯ
+        // =========================================================================
+        function showToast(msg, type = 'success') {
+            const box = document.getElementById('toastBox');
+            const text = document.getElementById('toastText');
+            const icon = document.getElementById('toastIcon');
+
+            text.textContent = msg;
+            icon.className = type === 'success'
+                ? 'fa-solid fa-circle-check text-emerald-400'
+                : type === 'warning'
+                    ? 'fa-solid fa-triangle-exclamation text-amber-400'
+                    : 'fa-solid fa-circle-info text-sky-400';
+
+            box.classList.remove('hidden');
+            clearTimeout(window.toastTimer);
+            window.toastTimer = setTimeout(() => {
+                box.classList.add('hidden');
+            }, 2600);
+        }
+
+        function openResetModal() {
+            const m = document.getElementById('resetModal');
+            m.classList.remove('hidden');
+            m.classList.add('flex');
+        }
+
+        function closeResetModal() {
+            const m = document.getElementById('resetModal');
+            m.classList.add('hidden');
+            m.classList.remove('flex');
+        }
+
+        function confirmResetProgress() {
+            state.masteredIds = [];
+            saveState();
+            closeResetModal();
+            applyFilters();
+            showToast('Прогресс сброшен', 'info');
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        function escapeJs(str) {
+            return str.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        }
+
+        window.onload = function () {
+            loadState();
+            document.getElementById('personalIntroText').value = state.personalIntro;
+            // Предзагрузка голосов в браузере
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.getVoices();
+            }
+            renderCategories();
+            applyFilters();
+            renderCustomCardsList();
+        };
+    </script>
+</body>
+</html>
